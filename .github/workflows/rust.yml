@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: setup submodules
+        run: git submodule update --init --recursive
+
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.5.0
         with:
@@ -26,6 +29,9 @@ jobs:
 
       - name: Setup Cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Setup apt packages
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake llvm-dev clang libclang-dev
 
       - name: Check formatting
         run: cargo fmt  -- --check
