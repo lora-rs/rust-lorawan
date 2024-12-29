@@ -108,7 +108,32 @@ impl Sx127xVariant for Sx1276 {
         }
         let mut config_3 = radio.read_register(Register::RegModemConfig3).await?;
         config_3 = (config_3 & 0xf3u8) | ldro_agc_auto_flags;
-        radio.write_register(Register::RegModemConfig3, config_3).await
+        radio.write_register(Register::RegModemConfig3, config_3).await?;
+
+        // Errata 2.1: Sensitivity optimization with 500 kHz bandwidth
+        let mut high_bw_optimize1 = 0x03u8;
+        let mut high_bw_optimize2 = 0u8;
+        if mdltn_params.bandwidth == Bandwidth::_500KHz {
+            if mdltn_params.frequency_in_hz > SX1276_RF_MID_BAND_THRESH {
+                high_bw_optimize1 = 0x02;
+                high_bw_optimize2 = 0x64;
+            } else {
+                high_bw_optimize1 = 0x02;
+                high_bw_optimize2 = 0x7F;
+            }
+        }
+
+        radio
+            .write_register(Register::RegHighBwOptimize1, high_bw_optimize1)
+            .await?;
+
+        if high_bw_optimize2 != 0 {
+            radio
+                .write_register(Register::RegHighBwOptimize2, high_bw_optimize2)
+                .await?;
+        }
+
+        Ok(())
     }
 
     async fn set_packet_params<SPI: SpiDevice<u8>, IV: InterfaceVariant>(
