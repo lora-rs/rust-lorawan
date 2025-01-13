@@ -1,4 +1,6 @@
-use crate::maccommands::{Error, MacCommandIterator, SerializableMacCommand};
+mod group_setup;
+use crate::maccommands::{DownlinkMacCommand, Error, MacCommandIterator, SerializableMacCommand};
+pub use group_setup::Session;
 use lorawan_macros::CommandHandler;
 
 const MAX_GROUPS: usize = 4;
@@ -11,7 +13,7 @@ pub enum DownlinkMulticastMsg<'a> {
     PackageVersionReq(PackageVersionReqPayload),
     #[cmd(cid = 0x01, len = 1)]
     McGroupStatusReq(McGroupStatusReqPayload<'a>),
-    #[cmd(cid = 0x02, len = 24)]
+    #[cmd(cid = 0x02, len = 29)]
     McGroupSetupReq(McGroupSetupReqPayload<'a>),
     #[cmd(cid = 0x03, len = 1)]
     McGroupDeleteReq(McGroupDeleteReqPayload<'a>),
@@ -20,7 +22,6 @@ pub enum DownlinkMulticastMsg<'a> {
     #[cmd(cid = 0x05, len = 10)]
     McClassBSessionReq(McClassBSessionReqPayload<'a>),
 }
-
 #[derive(Debug, PartialEq, CommandHandler)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 /// Uplink Multicast Messages
@@ -69,5 +70,40 @@ impl<'a> McGroupStatusAnsPayload<'a> {
     /// Actual length of this specific payload
     pub fn len(&self) -> usize {
         Self::required_len(self.0[0])
+    }
+}
+
+pub fn parse_downlink_multicast_messages(
+    data: &[u8],
+) -> MacCommandIterator<'_, DownlinkMulticastMsg<'_>> {
+    MacCommandIterator::new(data)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::parser::MulticastAddr;
+
+    #[test]
+    fn deserialize_commands() {
+        let bytes = [
+            2, 0, 52, 110, 29, 60, 205, 66, 22, 52, 69, 234, 32, 24, 25, 71, 17, 87, 212, 165, 74,
+            142, 0, 0, 0, 0, 255, 255, 255, 255,
+        ];
+        let mut messages = parse_downlink_multicast_messages(&bytes);
+        let first_msg = messages.next().unwrap();
+        if let DownlinkMulticastMsg::McGroupSetupReq(mc_group_setup_req) = first_msg {
+            println!("{:?}", mc_group_setup_req);
+            assert_eq!(mc_group_setup_req.mc_group_id_header(), 0);
+            assert_eq!(mc_group_setup_req.mc_addr(), MulticastAddr::from([52, 110, 29, 60]));
+            assert_eq!(
+                mc_group_setup_req.mc_key_encrypted(),
+                &[205, 66, 22, 52, 69, 234, 32, 24, 25, 71, 17, 87, 212, 165, 74, 142]
+            );
+            assert_eq!(mc_group_setup_req.min_mc_fcount(), 0);
+            assert_eq!(mc_group_setup_req.max_mc_fcount(), 0xFFFFFFFF);
+        } else {
+            panic!("Should have been a McGroupSetupReq");
+        }
     }
 }

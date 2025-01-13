@@ -23,7 +23,7 @@ pub use embassy_time::EmbassyTimer;
 
 #[cfg(feature = "multicast")]
 pub use lorawan::{
-    keys::{AppSKey, NwkSKey},
+    keys::{AppSKey, McAppSKey, McNetSKey, NwkSKey},
     parser::MulticastAddr,
 };
 
@@ -191,10 +191,10 @@ where
     pub fn set_multicast(
         &mut self,
         multicast_addr: MulticastAddr<[u8; 4]>,
-        newskey: NwkSKey,
-        appskey: AppSKey,
-    ) -> core::result::Result<(), mac::multicast::Error> {
-        self.mac.multicast.add_session(multicast_addr, newskey, appskey)
+        mc_net_s_key: McNetSKey,
+        mc_app_skey: McAppSKey,
+    ) -> Result<(), mac::multicast::Error> {
+        self.mac.multicast.add_session(multicast_addr, mc_net_s_key, mc_app_skey)
     }
 
     /// Disables Class C behavior. Note that an uplink must be set for the radio to disable
@@ -376,7 +376,7 @@ where
 
         // Class C listen while waiting for the window
         let rx_config = self.mac.get_rxc_config();
-        debug!("Configuring RXC window with config {}.", rx_config);
+        println!("Configuring RXC window with config {:?}.", rx_config);
         self.radio.setup_rx(rx_config).await.map_err(Error::Radio)?;
         let mut response = None;
         let timeout_fut = self.timer.at(duration.into());

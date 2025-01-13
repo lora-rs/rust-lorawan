@@ -1,5 +1,8 @@
-use crate::mac::{AppSKey, NwkSKey};
 pub use lorawan::parser::MulticastAddr;
+pub use lorawan::{
+    keys::{McAppSKey, McNetSKey},
+    multicast::Session,
+};
 
 pub(crate) type Result<T = ()> = core::result::Result<T, Error>;
 
@@ -12,6 +15,7 @@ pub enum Error {
 
 pub(crate) struct Multicast {
     port: u8,
+
     pub sessions: [Option<Session>; 4],
 }
 
@@ -49,35 +53,16 @@ impl Multicast {
     pub(crate) fn add_session(
         &mut self,
         multicast_addr: MulticastAddr<[u8; 4]>,
-        newskey: NwkSKey,
-        appskey: AppSKey,
+        mc_net_skey: McNetSKey,
+        mc_app_skey: McAppSKey,
     ) -> Result {
         for i in 0..self.sessions.len() {
             if self.sessions[i].is_none() {
-                self.sessions[i] = Some(Session { multicast_addr, newskey, appskey, fcnt_down: 0 });
+                self.sessions[i] =
+                    Some(Session::new(multicast_addr, mc_net_skey, mc_app_skey, 0, 0));
                 return Ok(());
             }
         }
         Err(Error::NoAvailableSlotForSession)
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Session {
-    multicast_addr: MulticastAddr<[u8; 4]>,
-    newskey: NwkSKey,
-    appskey: AppSKey,
-    pub(crate) fcnt_down: u32,
-}
-
-impl Session {
-    pub(crate) fn multicast_addr(&self) -> MulticastAddr<[u8; 4]> {
-        self.multicast_addr
-    }
-    pub(crate) fn nwkskey(&self) -> NwkSKey {
-        self.newskey
-    }
-    pub(crate) fn appskey(&self) -> AppSKey {
-        self.appskey
     }
 }

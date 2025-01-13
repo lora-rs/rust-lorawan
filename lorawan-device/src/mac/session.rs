@@ -112,12 +112,12 @@ impl Session {
                 if let Some(port) = encrypted_data.f_port() {
                     println!("Port: {}", port);
                     if port == multicast.port() {
+                        println!("Port matches");
                         let mc_addr = encrypted_data.fhdr().mc_addr();
                         if let Some(session) = multicast.matching_session(mc_addr) {
                             println!("Found matching sesesion: {:?}", session);
-
                             let fcnt = encrypted_data.fhdr().fcnt() as u32;
-                            if encrypted_data.validate_mic(session.nwkskey().inner(), fcnt)
+                            if encrypted_data.validate_mic(session.mc_net_s_key().inner(), fcnt)
                                 && (fcnt > session.fcnt_down || fcnt == 0)
                             {
                                 return {
@@ -125,8 +125,8 @@ impl Session {
                                     // We can safely unwrap here because we already validated the MIC
                                     let decrypted = encrypted_data
                                         .decrypt(
-                                            Some(session.nwkskey().inner()),
-                                            Some(session.appskey().inner()),
+                                            Some(session.mc_net_s_key().inner()),
+                                            Some(session.mc_app_s_key().inner()),
                                             self.fcnt_down,
                                         )
                                         .unwrap();
@@ -151,64 +151,70 @@ impl Session {
                     }
                 }
             }
+            let dev_addr = encrypted_data.fhdr().dev_addr();
+            println!("frame dev_addr = {dev_addr:?}, my dev_addr = {:?}", self.devaddr());
+            println!("fcnt = {}", encrypted_data.fhdr().fcnt());
+            println!("fhdr = {:?}", encrypted_data.fhdr());
+            if encrypted_data.validate_mic(self.appskey().inner(), 0) {
+                print!("mic validated by appskey");
+            }
+            //if self.devaddr() == &encrypted_data.fhdr().dev_addr() {
+            let fcnt = encrypted_data.fhdr().fcnt() as u32;
+            let confirmed = encrypted_data.is_confirmed();
+            println!("attempting to decrypt using session key fcnt = {fcnt}");
+            if encrypted_data.validate_mic(self.nwkskey().inner(), fcnt)
+                && (fcnt > self.fcnt_down || fcnt == 0)
+            {
+                println!("decrypted!");
+                self.fcnt_down = fcnt;
+                // We can safely unwrap here because we already validated the MIC
+                let decrypted = encrypted_data
+                    .decrypt(
+                        Some(self.nwkskey().inner()),
+                        Some(self.appskey().inner()),
+                        self.fcnt_down,
+                    )
+                    .unwrap();
 
-            if self.devaddr() == &encrypted_data.fhdr().dev_addr() {
-                let fcnt = encrypted_data.fhdr().fcnt() as u32;
-                let confirmed = encrypted_data.is_confirmed();
-                if encrypted_data.validate_mic(self.nwkskey().inner(), fcnt)
-                    && (fcnt > self.fcnt_down || fcnt == 0)
-                {
-                    self.fcnt_down = fcnt;
-                    // We can safely unwrap here because we already validated the MIC
-                    let decrypted = encrypted_data
-                        .decrypt(
-                            Some(self.nwkskey().inner()),
-                            Some(self.appskey().inner()),
-                            self.fcnt_down,
-                        )
-                        .unwrap();
-
-                    if !ignore_mac {
-                        // MAC commands may be in the FHDR or the FRMPayload
+                if !ignore_mac {
+                    // MAC commands may be in the FHDR or the FRMPayload
+                    configuration.handle_downlink_macs(
+                        region,
+                        &mut self.uplink,
+                        MacCommandIterator::<DownlinkMacCommand<'_>>::new(decrypted.fhdr().data()),
+                    );
+                    if let FRMPayload::MACCommands(mac_cmds) = decrypted.frm_payload() {
                         configuration.handle_downlink_macs(
                             region,
                             &mut self.uplink,
-                            MacCommandIterator::<DownlinkMacCommand<'_>>::new(
-                                decrypted.fhdr().data(),
-                            ),
+                            MacCommandIterator::<DownlinkMacCommand<'_>>::new(mac_cmds.data()),
                         );
-                        if let FRMPayload::MACCommands(mac_cmds) = decrypted.frm_payload() {
-                            configuration.handle_downlink_macs(
-                                region,
-                                &mut self.uplink,
-                                MacCommandIterator::<DownlinkMacCommand<'_>>::new(mac_cmds.data()),
-                            );
-                        }
                     }
-
-                    if confirmed {
-                        self.uplink.set_downlink_confirmation();
-                    }
-
-                    return if self.fcnt_up == 0xFFFF_FFFF {
-                        // if the FCnt is used up, the session has expired
-                        Response::SessionExpired
-                    } else {
-                        // we can always increment fcnt_up when we receive a downlink
-                        self.fcnt_up += 1;
-                        if let (Some(fport), FRMPayload::Data(data)) =
-                            (decrypted.f_port(), decrypted.frm_payload())
-                        {
-                            // heapless Vec from slice fails only if slice is too large.
-                            // A data FRM payload will never exceed 256 bytes.
-                            let data = Vec::from_slice(data).unwrap();
-                            // TODO: propagate error type when heapless vec is full?
-                            let _ = dl.push(Downlink { data, fport });
-                        }
-                        Response::DownlinkReceived(fcnt)
-                    };
                 }
+
+                if confirmed {
+                    self.uplink.set_downlink_confirmation();
+                }
+
+                return if self.fcnt_up == 0xFFFF_FFFF {
+                    // if the FCnt is used up, the session has expired
+                    Response::SessionExpired
+                } else {
+                    // we can always increment fcnt_up when we receive a downlink
+                    self.fcnt_up += 1;
+                    if let (Some(fport), FRMPayload::Data(data)) =
+                        (decrypted.f_port(), decrypted.frm_payload())
+                    {
+                        // heapless Vec from slice fails only if slice is too large.
+                        // A data FRM payload will never exceed 256 bytes.
+                        let data = Vec::from_slice(data).unwrap();
+                        // TODO: propagate error type when heapless vec is full?
+                        let _ = dl.push(Downlink { data, fport });
+                    }
+                    Response::DownlinkReceived(fcnt)
+                };
             }
+            //}
         }
         Response::NoUpdate
     }

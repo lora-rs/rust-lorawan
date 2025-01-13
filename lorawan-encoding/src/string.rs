@@ -126,6 +126,22 @@ fixed_len_struct_impl_to_string_msb! {
     AppSKey, 16;
 }
 
+fixed_len_struct_impl_to_string_msb! {
+    McKEKey, 16;
+}
+
+fixed_len_struct_impl_to_string_msb! {
+    McNetSKey, 16;
+}
+
+fixed_len_struct_impl_to_string_msb! {
+    McAppSKey, 16;
+}
+
+fixed_len_struct_impl_to_string_msb! {
+    McKey, 16;
+}
+
 fixed_len_struct_impl_string_lsb! {
     DevEui, 8;
 }
@@ -137,8 +153,9 @@ fixed_len_struct_impl_string_lsb! {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::extra::std::string::ToString;
+    //   use crate::extra::std::string::ToString;
     use core::str::FromStr;
+    use std::string::String;
 
     #[test]
     fn test_appskey_to_string() {

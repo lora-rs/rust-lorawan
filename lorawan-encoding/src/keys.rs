@@ -1,6 +1,6 @@
 //! Implement types for dealing with LoRaWAN keys and required
 //! cryptography entities.
-use super::parser::EUI64;
+use super::parser::{MulticastAddr, EUI64};
 
 macro_rules! lorawan_key {
     (
@@ -12,6 +12,12 @@ macro_rules! lorawan_key {
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
         pub struct $type(pub(crate) AES128);
+
+        impl $type {
+            pub const fn byte_len() -> usize {
+                16
+            }
+        }
 
         impl From<[u8;16]> for $type {
             fn from(key: [u8; 16]) -> Self {
@@ -99,6 +105,124 @@ lorawan_key!(
 #[deprecated(since = "0.9.1", note = "Please use `NwkSKey` instead")]
 pub type NewSKey = NwkSKey;
 
+lorawan_key!(
+    /// The [`McKey`] is a multicast key for a multicast session. It is shared by all end-devices
+    /// that are part of the same multicast session.
+    ///
+    /// It SHOULD be stored such that extraction and re-use by malicious
+    /// actors is prevented.
+    ///
+    /// To create from a hex-encoded MSB string:
+    /// ```
+    /// use lorawan::keys::McKey;
+    /// use core::str::FromStr;
+    /// let mckey = McKey::from_str("00112233445566778899aabbccddeeff").unwrap();
+    /// ```
+    ///
+    /// To create from a byte array, you should enter the bytes in MSB format:
+    /// ```
+    /// use lorawan::keys::McKey;
+    /// let mckey = McKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    /// ```
+    pub struct McKey(AES128);
+);
+
+impl McKey {
+    /// McAppSKey = aes128_encrypt(McKey, 0x01 | McAddr | pad16)
+    pub fn derive_mcappskey<F: CryptoFactory, T: AsRef<[u8]>>(
+        &self,
+        crypto: &F,
+        mc_addr: &MulticastAddr<T>,
+    ) -> McAppSKey {
+        let aes_enc = crypto.new_enc(&self.0);
+        let mut bytes: [u8; 16] = [0; 16];
+        bytes[0] = 0x01;
+        bytes[1..16].copy_from_slice(&mc_addr.as_ref()[..15]);
+        aes_enc.encrypt_block(&mut bytes);
+        McAppSKey::from(bytes)
+    }
+
+    /// McNetSKey = aes128_encrypt(McKey, 0x02 | McAddr | pad16)
+    pub fn derive_mcnetskey<F: CryptoFactory, T: AsRef<[u8]>>(
+        &self,
+        crypto: &F,
+        mc_addr: &MulticastAddr<T>,
+    ) -> McNetSKey {
+        let aes_enc = crypto.new_enc(&self.0);
+        let mut bytes: [u8; 16] = [0; 16];
+        bytes[0] = 0x02;
+        bytes[1..16].copy_from_slice(&mc_addr.as_ref()[..15]);
+        aes_enc.encrypt_block(&mut bytes);
+        McNetSKey::from(bytes)
+    }
+}
+
+lorawan_key!(
+    /// The [`McNetSKey`] is the multicast network session key for a multicast session. It is shared
+    /// by all end-devices that are part of the same multicast session.
+    ///
+    /// It SHOULD be stored such that extraction and re-use by malicious
+    /// actors is prevented.
+    ///
+    /// To create from a hex-encoded MSB string:
+    /// ```
+    /// use lorawan::keys::McNetSKey;
+    /// use core::str::FromStr;
+    /// let mckey = McNetSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
+    /// ```
+    ///
+    /// To create from a byte array, you should enter the bytes in MSB format:
+    /// ```
+    /// use lorawan::keys::McNetSKey;
+    /// let mckey = McNetSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    /// ```
+    pub struct McNetSKey(AES128);
+);
+
+lorawan_key!(
+    /// The [`McAppSKey`] is the multicast network session key for a multicast session. It is shared
+    /// by all end-devices that are part of the same multicast session.
+    ///
+    /// It SHOULD be stored such that extraction and re-use by malicious
+    /// actors is prevented.
+    ///
+    /// To create from a hex-encoded MSB string:
+    /// ```
+    /// use lorawan::keys::McAppSKey;
+    /// use core::str::FromStr;
+    /// let mckey = McAppSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
+    /// ```
+    ///
+    /// To create from a byte array, you should enter the bytes in MSB format:
+    /// ```
+    /// use lorawan::keys::McAppSKey;
+    /// let mckey = McAppSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    /// ```
+    pub struct McAppSKey(AES128);
+);
+
+lorawan_key!(
+    /// The [`McKEKey`] is a multicast key encryption key which is device specific for the lifetime
+    /// of the device.
+    ///
+    /// It SHOULD be stored such that extraction and re-use by malicious
+    /// actors is prevented.
+    ///
+    /// To create from a hex-encoded MSB string:
+    /// ```
+    /// use lorawan::keys::McKEKey;
+    /// use core::str::FromStr;
+    /// let nwkskey = McKEKey::from_str("00112233445566778899aabbccddeeff").unwrap();
+    /// ```
+    ///
+    /// To create from a byte array, you should enter the bytes in MSB format:
+    /// ```
+    /// use lorawan::keys::McKEKey;
+    /// let nwkskey = McKEKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    /// ```
+    pub struct McKEKey(AES128);
+);
+
 macro_rules! lorawan_eui {
     (
         $(#[$outer:meta])*
@@ -109,6 +233,12 @@ macro_rules! lorawan_eui {
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
         pub struct $type(EUI64<[u8; 8]>);
+
+        impl $type {
+            pub const fn byte_len() -> usize {
+                8
+            }
+        }
 
         impl From<[u8;8]> for $type {
             fn from(key: [u8; 8]) -> Self {

@@ -52,9 +52,13 @@ macro_rules! fixed_len_struct {
         #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
         pub struct $type<T: AsRef<[u8]>>(T);
 
+
         impl<T: AsRef<[u8]>> $type<T> {
-            #[allow(dead_code)]
-            fn new_from_raw(bytes: T) -> $type<T> {
+            pub const fn byte_len() -> usize {
+                $size
+            }
+
+            pub(crate) fn new_from_raw(bytes: T) -> $type<T> {
                 $type(bytes)
             }
 
