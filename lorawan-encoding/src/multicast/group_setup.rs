@@ -77,41 +77,38 @@ impl McGroupSetupReqPayload<'_> {
         (mc_key.derive_mcappskey(crypto, &mc_addr), mc_key.derive_mcnetskey(crypto, &mc_addr))
     }
 
-    pub fn derive_session<F: CryptoFactory>(&self, crypto: &F, key: &McKEKey) -> Session {
+    /// Derives the multicast session and returns the assigned group ID.
+    pub fn derive_session<F: CryptoFactory>(&self, crypto: &F, key: &McKEKey) -> (usize, Session) {
         let (mc_app_s_key, mc_net_s_key) = self.derive_session_keys(crypto, key);
-        Session {
-            multicast_addr: self.mc_addr().to_owned(),
-            mc_net_s_key,
-            mc_app_s_key,
-            fcnt_down: self.min_mc_fcount(),
-            max_fcnt_down: self.max_mc_fcount(),
-        }
+        (
+            self.mc_group_id_header() as usize,
+            Session {
+                multicast_addr: self.mc_addr().to_owned(),
+                mc_net_s_key,
+                mc_app_s_key,
+                fcnt_down: self.min_mc_fcount(),
+                max_fcnt_down: self.max_mc_fcount(),
+            },
+        )
     }
 
     /// `minMcFCount` is the next frame counter value of the multicast downlink to be sent by the
     /// server for this group
     pub fn min_mc_fcount(&self) -> u32 {
         const OFFSET: usize = 1 + MulticastAddr::<&[u8]>::byte_len() + McKey::byte_len();
-        u32::from_le_bytes([
-            self.0[OFFSET],
-            self.0[OFFSET + 1],
-            self.0[OFFSET + 2],
-            self.0[OFFSET + 3],
-        ])
+        let bytes = &self.0[OFFSET..OFFSET + size_of::<u32>()];
+        // tolerate unwrap here because we know the length is 4
+        u32::from_le_bytes(bytes.try_into().unwrap())
     }
 
-    /// `maxMcFCount` specifies the life time of this multicast group expressed as a maximum number
+    /// `maxMcFCount` specifies the lifetime of this multicast group expressed as a maximum number
     /// of frames. The end-device will only accept a multicast downlink frame if the 32-bits frame
     /// counter value minMcFCount ≤ McFCount < maxMcFCount.
     pub fn max_mc_fcount(&self) -> u32 {
         const OFFSET: usize =
             1 + MulticastAddr::<&[u8]>::byte_len() + McKey::byte_len() + size_of::<u32>();
-        println!("{}", OFFSET + 3);
-        u32::from_le_bytes([
-            self.0[OFFSET],
-            self.0[OFFSET + 1],
-            self.0[OFFSET + 2],
-            self.0[OFFSET + 3],
-        ])
+        let bytes = &self.0[OFFSET..OFFSET + size_of::<u32>()];
+        // tolerate unwrap here because we know the length is 4
+        u32::from_le_bytes(bytes.try_into().unwrap())
     }
 }

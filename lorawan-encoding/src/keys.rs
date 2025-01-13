@@ -202,6 +202,27 @@ lorawan_key!(
 );
 
 lorawan_key!(
+    /// The [`McRootKey`] is a multicast key encryption key which is device specific for the lifetime
+    /// of the device.
+    ///
+    /// It SHOULD be stored such that extraction and re-use by malicious
+    /// actors is prevented.
+    ///
+    /// To create from a hex-encoded MSB string:
+    /// ```
+    /// use lorawan::keys::McRootKey;
+    /// use core::str::FromStr;
+    /// let nwkskey = McRootKey::from_str("00112233445566778899aabbccddeeff").unwrap();
+    /// ```
+    ///
+    /// To create from a byte array, you should enter the bytes in MSB format:
+    /// ```
+    /// use lorawan::keys::McKEKey;
+    /// let nwkskey = McKEKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    /// ```
+    pub struct McRootKey(AES128);
+);
+lorawan_key!(
     /// The [`McKEKey`] is a multicast key encryption key which is device specific for the lifetime
     /// of the device.
     ///
@@ -222,6 +243,16 @@ lorawan_key!(
     /// ```
     pub struct McKEKey(AES128);
 );
+
+impl McKEKey {
+    /// McKEKey = aes128_encrypt(McRootKey, 0x00 | pad16)
+    pub fn derive_from<F: CryptoFactory>(crypto: &F, root_key: &McRootKey) -> Self {
+        let aes_enc = crypto.new_enc(&root_key.0);
+        let mut bytes: [u8; 16] = [0; 16];
+        aes_enc.encrypt_block(&mut bytes);
+        McKEKey::from(bytes)
+    }
+}
 
 macro_rules! lorawan_eui {
     (

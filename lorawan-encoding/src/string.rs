@@ -127,6 +127,10 @@ fixed_len_struct_impl_to_string_msb! {
 }
 
 fixed_len_struct_impl_to_string_msb! {
+    McRootKey, 16;
+}
+
+fixed_len_struct_impl_to_string_msb! {
     McKEKey, 16;
 }
 

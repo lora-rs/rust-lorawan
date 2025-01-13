@@ -1,15 +1,15 @@
+use crate::radio::RadioBuffer;
 use crate::{region, AppSKey, Downlink, NwkSKey};
 use heapless::Vec;
 use lorawan::keys::CryptoFactory;
 use lorawan::maccommands::{DownlinkMacCommand, MacCommandIterator};
+use lorawan::multicast::parse_downlink_multicast_messages;
 use lorawan::{
     creator::DataPayloadCreator,
     maccommands::SerializableMacCommand,
     parser::{parse_with_factory as lorawan_parse, *},
     parser::{DecryptedJoinAcceptPayload, DevAddr},
 };
-
-use crate::radio::RadioBuffer;
 
 use super::{
     otaa::{DevNonce, NetworkCredentials},
@@ -111,43 +111,45 @@ impl Session {
             {
                 if let Some(port) = encrypted_data.f_port() {
                     println!("Port: {}", port);
-                    if port == multicast.port() {
-                        println!("Port matches");
-                        let mc_addr = encrypted_data.fhdr().mc_addr();
-                        if let Some(session) = multicast.matching_session(mc_addr) {
-                            println!("Found matching sesesion: {:?}", session);
-                            let fcnt = encrypted_data.fhdr().fcnt() as u32;
-                            if encrypted_data.validate_mic(session.mc_net_s_key().inner(), fcnt)
-                                && (fcnt > session.fcnt_down || fcnt == 0)
-                            {
-                                return {
-                                    session.fcnt_down = fcnt;
-                                    // We can safely unwrap here because we already validated the MIC
-                                    let decrypted = encrypted_data
-                                        .decrypt(
-                                            Some(session.mc_net_s_key().inner()),
-                                            Some(session.mc_app_s_key().inner()),
-                                            self.fcnt_down,
-                                        )
-                                        .unwrap();
-                                    if session.fcnt_down == 0xFFFF_FFFF {
-                                        // if the FCnt is used up, the session has expired
-                                        Response::SessionExpired
-                                    } else {
-                                        if let (Some(fport), FRMPayload::Data(data)) =
-                                            (decrypted.f_port(), decrypted.frm_payload())
-                                        {
-                                            // heapless Vec from slice fails only if slice is too large.
-                                            // A data FRM payload will never exceed 256 bytes.
-                                            let data = Vec::from_slice(data).unwrap();
-                                            // TODO: propagate error type when heapless vec is full?
-                                            let _ = dl.push(Downlink { data, fport });
-                                        }
-                                        Response::DownlinkReceived(fcnt)
+
+                    //if port == multicast.port() {
+
+                    println!("Port matches");
+                    let mc_addr = encrypted_data.fhdr().mc_addr();
+                    if let Some(session) = multicast.matching_session(mc_addr) {
+                        println!("Found matching sesesion: {:?}", session);
+                        let fcnt = encrypted_data.fhdr().fcnt() as u32;
+                        if encrypted_data.validate_mic(session.mc_net_s_key().inner(), fcnt)
+                            && (fcnt > session.fcnt_down || fcnt == 0)
+                        {
+                            return {
+                                session.fcnt_down = fcnt;
+                                // We can safely unwrap here because we already validated the MIC
+                                let decrypted = encrypted_data
+                                    .decrypt(
+                                        Some(session.mc_net_s_key().inner()),
+                                        Some(session.mc_app_s_key().inner()),
+                                        self.fcnt_down,
+                                    )
+                                    .unwrap();
+                                if session.fcnt_down == 0xFFFF_FFFF {
+                                    // if the FCnt is used up, the session has expired
+                                    Response::SessionExpired
+                                } else {
+                                    if let (Some(fport), FRMPayload::Data(data)) =
+                                        (decrypted.f_port(), decrypted.frm_payload())
+                                    {
+                                        // heapless Vec from slice fails only if slice is too large.
+                                        // A data FRM payload will never exceed 256 bytes.
+                                        let data = Vec::from_slice(data).unwrap();
+                                        // TODO: propagate error type when heapless vec is full?
+                                        let _ = dl.push(Downlink { data, fport });
                                     }
-                                };
-                            }
+                                    Response::DownlinkReceived(fcnt)
+                                }
+                            };
                         }
+                        //}
                     }
                 }
             }
@@ -205,6 +207,22 @@ impl Session {
                     if let (Some(fport), FRMPayload::Data(data)) =
                         (decrypted.f_port(), decrypted.frm_payload())
                     {
+                        // We know it is a data frame and th
+                        #[cfg(feature = "multicast")]
+                        if fport == multicast.port() {
+                            use lorawan::multicast::DownlinkMulticastMsg;
+                            let messages = parse_downlink_multicast_messages(data);
+                            for message in messages {
+                                if let DownlinkMulticastMsg::McGroupSetupReq(mc_group_setup_req) =
+                                    message
+                                {
+                                    let (group_id, session) = mc_group_setup_req
+                                        .derive_session(&C::default(), &multicast.mc_k_e_key);
+                                    multicast.sessions[group_id] = Some(session);
+                                }
+                            }
+                        }
+
                         // heapless Vec from slice fails only if slice is too large.
                         // A data FRM payload will never exceed 256 bytes.
                         let data = Vec::from_slice(data).unwrap();

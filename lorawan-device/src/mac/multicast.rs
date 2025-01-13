@@ -1,6 +1,7 @@
+use lorawan::keys::{CryptoFactory, McKEKey};
 pub use lorawan::parser::MulticastAddr;
 pub use lorawan::{
-    keys::{McAppSKey, McNetSKey},
+    keys::{McAppSKey, McKey, McNetSKey, McRootKey},
     multicast::Session,
 };
 
@@ -14,15 +15,18 @@ pub enum Error {
 }
 
 pub(crate) struct Multicast {
+    pub(crate) mc_root_key: McRootKey,
+    pub(crate) mc_k_e_key: McKEKey,
     port: u8,
-
     pub sessions: [Option<Session>; 4],
 }
 
 impl Multicast {
-    pub fn new() -> Self {
-        Self { port: DEFAULT_MC_PORT, sessions: [None, None, None, None] }
+    pub fn new<F: CryptoFactory>(crypto: &F, mc_root_key: McRootKey) -> Self {
+        let mc_k_e_key = McKEKey::derive_from(crypto, &mc_root_key);
+        Self { mc_root_key, mc_k_e_key, port: DEFAULT_MC_PORT, sessions: [None, None, None, None] }
     }
+
     pub(crate) fn set_port(&mut self, port: u8) {
         self.port = port;
     }

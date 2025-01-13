@@ -115,7 +115,12 @@ pub struct SendData<'a> {
 pub(crate) type Result<T = ()> = core::result::Result<T, Error>;
 
 impl Mac {
-    pub(crate) fn new(region: region::Configuration, max_power: u8, antenna_gain: i8) -> Self {
+    pub(crate) fn new<F: CryptoFactory>(
+        factory: &F,
+        region: region::Configuration,
+        max_power: u8,
+        antenna_gain: i8,
+    ) -> Self {
         let data_rate = region.get_default_datarate();
         Self {
             board_eirp: BoardEirp { max_power, antenna_gain },
@@ -128,7 +133,7 @@ impl Mac {
                 join_accept_delay2: region::constants::JOIN_ACCEPT_DELAY2,
             },
             #[cfg(feature = "multicast")]
-            multicast: multicast::Multicast::new(),
+            multicast: multicast::Multicast::new(f),
         }
     }
 
