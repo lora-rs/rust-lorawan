@@ -1,5 +1,5 @@
 mod group_setup;
-use crate::maccommands::{DownlinkMacCommand, Error, MacCommandIterator, SerializableMacCommand};
+use crate::maccommands::{Error, MacCommandIterator, SerializableMacCommand};
 pub use group_setup::Session;
 use lorawan_macros::CommandHandler;
 

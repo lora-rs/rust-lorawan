@@ -1,9 +1,5 @@
 use crate::keys::{CryptoFactory, McAppSKey, McKEKey, McKey, McNetSKey};
-use crate::{
-    keys::{AppSKey, Encrypter, NwkSKey},
-    multicast::{McGroupSetupAnsPayload, McGroupSetupReqPayload},
-    parser::MulticastAddr,
-};
+use crate::{keys::Encrypter, multicast::McGroupSetupReqPayload, parser::MulticastAddr};
 
 #[derive(Debug)]
 pub struct Session {
@@ -74,7 +70,7 @@ impl McGroupSetupReqPayload<'_> {
     ) -> (McAppSKey, McNetSKey) {
         let mc_key = self.mc_key_decrypted(crypto, key);
         let mc_addr = self.mc_addr();
-        (mc_key.derive_mcappskey(crypto, &mc_addr), mc_key.derive_mcnetskey(crypto, &mc_addr))
+        (mc_key.derive_mc_app_s_key(crypto, &mc_addr), mc_key.derive_mc_net_s_key(crypto, &mc_addr))
     }
 
     /// Derives the multicast session and returns the assigned group ID.

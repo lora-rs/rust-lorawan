@@ -157,9 +157,7 @@ fixed_len_struct_impl_string_lsb! {
 #[cfg(test)]
 mod test {
     use super::*;
-    //   use crate::extra::std::string::ToString;
     use core::str::FromStr;
-    use std::string::String;
 
     #[test]
     fn test_appskey_to_string() {

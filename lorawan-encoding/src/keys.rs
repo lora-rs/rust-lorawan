@@ -129,7 +129,7 @@ lorawan_key!(
 
 impl McKey {
     /// McAppSKey = aes128_encrypt(McKey, 0x01 | McAddr | pad16)
-    pub fn derive_mcappskey<F: CryptoFactory, T: AsRef<[u8]>>(
+    pub fn derive_mc_app_s_key<F: CryptoFactory, T: AsRef<[u8]>>(
         &self,
         crypto: &F,
         mc_addr: &MulticastAddr<T>,
@@ -137,13 +137,13 @@ impl McKey {
         let aes_enc = crypto.new_enc(&self.0);
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = 0x01;
-        bytes[1..16].copy_from_slice(&mc_addr.as_ref()[..15]);
+        bytes[1..5].copy_from_slice(mc_addr.as_ref());
         aes_enc.encrypt_block(&mut bytes);
         McAppSKey::from(bytes)
     }
 
     /// McNetSKey = aes128_encrypt(McKey, 0x02 | McAddr | pad16)
-    pub fn derive_mcnetskey<F: CryptoFactory, T: AsRef<[u8]>>(
+    pub fn derive_mc_net_s_key<F: CryptoFactory, T: AsRef<[u8]>>(
         &self,
         crypto: &F,
         mc_addr: &MulticastAddr<T>,
@@ -151,7 +151,7 @@ impl McKey {
         let aes_enc = crypto.new_enc(&self.0);
         let mut bytes: [u8; 16] = [0; 16];
         bytes[0] = 0x02;
-        bytes[1..16].copy_from_slice(&mc_addr.as_ref()[..15]);
+        bytes[1..5].copy_from_slice(mc_addr.as_ref());
         aes_enc.encrypt_block(&mut bytes);
         McNetSKey::from(bytes)
     }
@@ -397,4 +397,52 @@ pub trait CryptoFactory {
 
     /// Method that creates a MAC calculator.
     fn new_mac(&self, key: &AES128) -> Self::M;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::default_crypto::DefaultFactory;
+
+    const TEST_KEY: [u8; 16] = [4, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    const ADDR: [u8; 4] = [1, 2, 3, 4];
+    #[test]
+    fn mc_root_key_to_mc_ke_key() {
+        let mc_root_key = McRootKey::from(TEST_KEY);
+        let mc_ke_key = McKEKey::derive_from(&DefaultFactory, &mc_root_key);
+        assert_eq!(
+            McKEKey(AES128([
+                0x90, 0x83, 0xbe, 0xbf, 0x70, 0x42, 0x57, 0x88, 0x31, 0x60, 0xdb, 0xfc, 0xde, 0x33,
+                0xad, 0x71
+            ])),
+            mc_ke_key
+        )
+    }
+
+    #[test]
+    fn mc_key_to_mc_app_s_key() {
+        let mc_key = McKey::from(TEST_KEY);
+        let mc_app_s_key = mc_key.derive_mc_app_s_key(&DefaultFactory, &MulticastAddr::from(ADDR));
+        assert_eq!(
+            McAppSKey(AES128([
+                0x95, 0xcb, 0x45, 0x18, 0xee, 0x37, 0x56, 0x6, 0x73, 0x5b, 0xba, 0xcb, 0xdc, 0xe8,
+                0x37, 0xfa
+            ])),
+            mc_app_s_key
+        )
+    }
+
+    #[test]
+    fn mc_key_to_mc_net_s_key() {
+        let mc_key = McKey::from(TEST_KEY);
+        let mc_net_s_key = mc_key.derive_mc_net_s_key(&DefaultFactory, &MulticastAddr::from(ADDR));
+        assert_eq!(
+            McNetSKey(AES128([
+                0xc3, 0xf6, 0xb3, 0x88, 0xba, 0xd6, 0xc0, 0x0, 0xb2, 0x32, 0x91, 0xad, 0x52, 0xc1,
+                0x1c, 0x7b
+            ])),
+            mc_net_s_key
+        )
+    }
 }
