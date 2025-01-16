@@ -3,6 +3,7 @@
 //! implementation.
 use super::radio::RadioBuffer;
 use super::*;
+use crate::mac::multicast;
 use crate::nb_device::radio::PhyRxTx;
 use mac::{Mac, SendData};
 
@@ -31,6 +32,27 @@ where
     C: CryptoFactory + Default,
     RNG: RngCore,
 {
+    #[cfg(feature = "multicast")]
+    pub fn new(
+        region: region::Configuration,
+        radio: R,
+        rng: RNG,
+        multicast: multicast::Multicast,
+    ) -> Device<R, C, RNG, N, D> {
+        Device {
+            crypto: PhantomData,
+            state: State::default(),
+            shared: Shared {
+                radio,
+                rng,
+                tx_buffer: RadioBuffer::new(),
+                mac: Mac::new(region, R::MAX_RADIO_POWER, R::ANTENNA_GAIN, multicast),
+                downlink: Vec::new(),
+            },
+        }
+    }
+
+    #[cfg(not(feature = "multicast"))]
     pub fn new(region: region::Configuration, radio: R, rng: RNG) -> Device<R, C, RNG, N, D> {
         Device {
             crypto: PhantomData,

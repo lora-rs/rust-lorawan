@@ -1,6 +1,6 @@
 //! LoRaWAN device which uses async-await for driving the protocol state against pin and timer events,
 //! allowing for asynchronous radio implementations. Requires the `async` feature.
-use super::mac::{self, Frame, Mac, Window};
+use super::mac::{self, multicast, Frame, Mac, Window};
 pub use super::{
     mac::{NetworkCredentials, SendData, Session},
     region::{self, Region},
@@ -110,6 +110,18 @@ where
     /// This function must **always** be called with a new randomly generated seed! **Never** call this function more
     /// than once using the same seed. Generate the seed using a true random number generator. Using the same seed will
     /// leave you vulnerable to replay attacks.
+    #[cfg(feature = "multicast")]
+    pub fn new_with_seed(
+        region: region::Configuration,
+        radio: R,
+        timer: T,
+        seed: u64,
+        multicast: multicast::Multicast,
+    ) -> Self {
+        Device::new_with_seed_and_session(region, radio, timer, seed, None, multicast)
+    }
+
+    #[cfg(not(feature = "multicast"))]
     pub fn new_with_seed(region: region::Configuration, radio: R, timer: T, seed: u64) -> Self {
         Device::new_with_seed_and_session(region, radio, timer, seed, None)
     }
@@ -123,6 +135,20 @@ where
     /// This function must **always** be called with a new randomly generated seed! **Never** call this function more
     /// than once using the same seed. Generate the seed using a true random number generator. Using the same seed will
     /// leave you vulnerable to replay attacks.
+    #[cfg(feature = "multicast")]
+    pub fn new_with_seed_and_session(
+        region: region::Configuration,
+        radio: R,
+        timer: T,
+        seed: u64,
+        session: Option<Session>,
+        multicast: multicast::Multicast,
+    ) -> Self {
+        let rng = rng::Prng::new(seed);
+        Device::new_with_session(region, radio, timer, rng, session, multicast)
+    }
+
+    #[cfg(not(feature = "multicast"))]
     pub fn new_with_seed_and_session(
         region: region::Configuration,
         radio: R,
@@ -147,6 +173,18 @@ where
     ///
     /// See also [`new_with_seed`](Device::new_with_seed) to let [`Device`] use a builtin PRNG by providing a random
     /// seed.
+    #[cfg(feature = "multicast")]
+    pub fn new(
+        region: region::Configuration,
+        radio: R,
+        timer: T,
+        rng: G,
+        multicast: multicast::Multicast,
+    ) -> Self {
+        Device::new_with_session(region, radio, timer, rng, None, multicast)
+    }
+
+    #[cfg(not(feature = "multicast"))]
     pub fn new(region: region::Configuration, radio: R, timer: T, rng: G) -> Self {
         Device::new_with_session(region, radio, timer, rng, None)
     }
@@ -158,7 +196,11 @@ where
         timer: T,
         rng: G,
         session: Option<Session>,
+        #[cfg(feature = "multicast")] multicast: multicast::Multicast,
     ) -> Self {
+        #[cfg(feature = "multicast")]
+        let mut mac = Mac::new(region, R::MAX_RADIO_POWER, R::ANTENNA_GAIN, multicast);
+        #[cfg(not(feature = "multicast"))]
         let mut mac = Mac::new(region, R::MAX_RADIO_POWER, R::ANTENNA_GAIN);
         if let Some(session) = session {
             mac.set_session(session);

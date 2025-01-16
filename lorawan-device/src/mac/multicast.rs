@@ -1,7 +1,7 @@
 use lorawan::keys::{CryptoFactory, McKEKey};
 pub use lorawan::parser::MulticastAddr;
 pub use lorawan::{
-    keys::{McAppSKey, McKey, McNetSKey, McRootKey},
+    keys::{McAppSKey, McNetSKey, McRootKey},
     multicast::Session,
 };
 
@@ -14,8 +14,7 @@ pub enum Error {
     NoAvailableSlotForSession,
 }
 
-pub(crate) struct Multicast {
-    pub(crate) mc_root_key: McRootKey,
+pub struct Multicast {
     pub(crate) mc_k_e_key: McKEKey,
     port: u8,
     pub sessions: [Option<Session>; 4],
@@ -24,7 +23,7 @@ pub(crate) struct Multicast {
 impl Multicast {
     pub fn new<F: CryptoFactory>(crypto: &F, mc_root_key: McRootKey) -> Self {
         let mc_k_e_key = McKEKey::derive_from(crypto, &mc_root_key);
-        Self { mc_root_key, mc_k_e_key, port: DEFAULT_MC_PORT, sessions: [None, None, None, None] }
+        Self { mc_k_e_key, port: DEFAULT_MC_PORT, sessions: [None, None, None, None] }
     }
 
     pub(crate) fn set_port(&mut self, port: u8) {
