@@ -8,6 +8,20 @@ macro_rules! lorawan_key {
         pub struct $type:ident(AES128);
     ) => {
         $(#[$outer])*
+        /// # Usage
+        ///
+        /// ## Creating from a hex-encoded MSB string:
+        /// ```
+        /// use lorawan::keys::$type;
+        /// use core::str::FromStr;
+        /// let key = $type::from_str("00112233445566778899aabbccddeeff").unwrap();
+        /// ```
+        ///
+        /// ## Creating from a byte array in MSB format:
+        /// ```
+        /// use lorawan::keys::$type;
+        /// let key = $type::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+        /// ```
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
@@ -40,65 +54,13 @@ macro_rules! lorawan_key {
 }
 
 lorawan_key!(
-    /// The [`AppKey`] is an AES-128 root key specific to the end-device.
-    ///
-    /// `AppKey` SHALL be stored on an end-device intending to use the OTAA procedure.
-    /// It is NOT REQUIRED for ABP-only end-devices.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::AppKey;
-    /// use core::str::FromStr;
-    ///let appkey = AppKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::AppKey;
-    /// let appkey = AppKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct AppKey(AES128);
 );
 lorawan_key!(
-    /// The [`AppSKey`] is an application session key (AES-128) specific to
-    /// the end-device.
-    ///
-    /// `AppSKey` SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::AppSKey;
-    /// use core::str::FromStr;
-    /// let appskey = AppSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::AppSKey;
-    /// let appskey = AppSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct AppSKey(AES128);
 );
 
 lorawan_key!(
-    /// The [`NwkSKey`] is a network session key (AES-128) specific to the end-device.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::NwkSKey;
-    /// use core::str::FromStr;
-    /// let nwkskey = NwkSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::NwkSKey;
-    /// let nwkskey = NwkSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct NwkSKey(AES128);
 );
 
@@ -106,24 +68,6 @@ lorawan_key!(
 pub type NewSKey = NwkSKey;
 
 lorawan_key!(
-    /// The [`McKey`] is a multicast key for a multicast session. It is shared by all end-devices
-    /// that are part of the same multicast session.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::McKey;
-    /// use core::str::FromStr;
-    /// let mckey = McKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::McKey;
-    /// let mckey = McKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct McKey(AES128);
 );
 
@@ -158,89 +102,18 @@ impl McKey {
 }
 
 lorawan_key!(
-    /// The [`McNetSKey`] is the multicast network session key for a multicast session. It is shared
-    /// by all end-devices that are part of the same multicast session.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::McNetSKey;
-    /// use core::str::FromStr;
-    /// let mckey = McNetSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::McNetSKey;
-    /// let mckey = McNetSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct McNetSKey(AES128);
 );
 
 lorawan_key!(
-    /// The [`McAppSKey`] is the multicast network session key for a multicast session. It is shared
-    /// by all end-devices that are part of the same multicast session.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::McAppSKey;
-    /// use core::str::FromStr;
-    /// let mckey = McAppSKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::McAppSKey;
-    /// let mckey = McAppSKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct McAppSKey(AES128);
 );
 
 lorawan_key!(
-    /// The [`McRootKey`] is a multicast key encryption key which is device specific for the lifetime
-    /// of the device.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::McRootKey;
-    /// use core::str::FromStr;
-    /// let nwkskey = McRootKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::McKEKey;
-    /// let nwkskey = McKEKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct McRootKey(AES128);
 );
+
 lorawan_key!(
-    /// The [`McKEKey`] is a multicast key encryption key which is device specific for the lifetime
-    /// of the device.
-    ///
-    /// It SHOULD be stored such that extraction and re-use by malicious
-    /// actors is prevented.
-    ///
-    /// To create from a hex-encoded MSB string:
-    /// ```
-    /// use lorawan::keys::McKEKey;
-    /// use core::str::FromStr;
-    /// let nwkskey = McKEKey::from_str("00112233445566778899aabbccddeeff").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in MSB format:
-    /// ```
-    /// use lorawan::keys::McKEKey;
-    /// let nwkskey = McKEKey::from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
-    /// ```
     pub struct McKEKey(AES128);
 );
 
@@ -260,6 +133,20 @@ macro_rules! lorawan_eui {
         pub struct $type:ident(EUI64<[u8; 8]>);
     ) => {
         $(#[$outer])*
+         /// # Usage
+         ///
+         /// ## Creating from a hex-encoded LSB string:
+         /// ```
+         /// use lorawan::keys::$type;
+         /// use core::str::FromStr;
+         /// let eui = $type::from_str("0011223344556677").unwrap();
+         /// ```
+         ///
+         /// ## Creating from a byte array in LSB format:
+         /// ```
+         /// use lorawan::keys::$type;
+         /// let eui = $type::from([0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]);
+        /// ```
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
@@ -300,19 +187,6 @@ lorawan_eui!(
     ///
     /// It is a recommended practice that `DevEui` should also be available on
     /// an end-device label for the purpose of end-device administration.
-    ///
-    /// To create from a hex-encoded LSB string:
-    /// ```
-    /// use lorawan::keys::DevEui;
-    /// use core::str::FromStr;
-    /// let dev_eui = DevEui::from_str("0011223344556677").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in LSB format:
-    /// ```
-    /// use lorawan::keys::DevEui;
-    /// let dev_eui = DevEui::from([0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]);
-    /// ```
     pub struct DevEui(EUI64<[u8; 8]>);
 );
 lorawan_eui!(
@@ -325,19 +199,6 @@ lorawan_eui!(
     /// `AppEui` is not required for ABP-only end-devices.
     ///
     /// As of LoRaWAN 1.0.4, `AppEui` is called `JoinEui`.
-    ///
-    /// To create from a hex-encoded LSB string:
-    /// ```
-    /// use lorawan::keys::AppEui;
-    /// use core::str::FromStr;
-    /// let app_eui = AppEui::from_str("0011223344556677").unwrap();
-    /// ```
-    ///
-    /// To create from a byte array, you should enter the bytes in LSB format:
-    /// ```
-    /// use lorawan::keys::AppEui;
-    /// let app_eui = AppEui::from([0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00]);
-    /// ```
     pub struct AppEui(EUI64<[u8; 8]>);
 );
 
