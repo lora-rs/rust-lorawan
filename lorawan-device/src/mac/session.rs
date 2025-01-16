@@ -3,6 +3,7 @@ use crate::{region, AppSKey, Downlink, NwkSKey};
 use heapless::Vec;
 use lorawan::keys::CryptoFactory;
 use lorawan::maccommands::{DownlinkMacCommand, MacCommandIterator};
+#[cfg(feature = "multicast")]
 use lorawan::multicast::parse_downlink_multicast_messages;
 use lorawan::{
     creator::DataPayloadCreator,

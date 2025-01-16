@@ -3,6 +3,7 @@
 //! implementation.
 use super::radio::RadioBuffer;
 use super::*;
+#[cfg(feature = "multicast")]
 use crate::mac::multicast;
 use crate::nb_device::radio::PhyRxTx;
 use mac::{Mac, SendData};
